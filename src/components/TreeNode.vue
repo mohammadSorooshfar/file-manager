@@ -13,7 +13,7 @@ const vFocus = {
   mounted: (el: any) => el.focus()
 }
 const submitRename = (e: KeyboardEvent) => {
-  if (e.key === 'Enter') props.fileManage.renamingId = null
+  if (e.key === 'Enter' && props.file.name) props.fileManage.renamingId = null
 }
 const toggle = () => {
   props.file.open = !props.file.open

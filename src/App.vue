@@ -14,7 +14,7 @@ const fileManage = ref<FileManage>({
 })
 const files = ref<FileNode[]>([
   {
-    id: 0,
+    id: 14,
     name: '.vscode',
     type: 'folder',
     children: [
@@ -122,51 +122,114 @@ const reset = () => {
   fileManage.value.selectedId = null
 }
 
-const findNodeByIdWithParent = (
-  nodes: FileNode[] | null,
-  id: number
-): { parent: FileNode | null; child: FileNode | null } => {
-  if (!nodes) return { parent: null, child: null }
-
-  for (let node of nodes) {
+function findNodeAndParentById(id: number) {
+  // Recursive function to traverse the file structure
+  const traverse = (
+    node: FileNode,
+    parent: FileNode | null
+  ): { node: FileNode; parent: FileNode | null } | null => {
     if (node.id === id) {
-      return { parent: null, child: node }
+      return { node, parent }
     }
 
     if (node.children) {
-      for (let child of node.children) {
-        if (child.id === id) {
-          return { parent: node, child: child }
-        }
-        const result = findNodeByIdWithParent(child.children, id)
-        if (result.child) {
+      for (const child of node.children) {
+        const result = traverse(child, node)
+        if (result) {
           return result
         }
       }
     }
+
+    return null
   }
-  return { parent: null, child: null }
+
+  // Start the traversal from the root of the file structure
+  for (const file of files.value) {
+    const result = traverse(file, null)
+    if (result) {
+      return result
+    }
+  }
+
+  // If the node is not found, return null
+  return null
 }
 
 const deleteNode = () => {
   if (fileManage.value.selectedId === null) return
 
-  const { parent, child } = findNodeByIdWithParent(
-    files.value,
-    fileManage.value.selectedId
-  )
+  const item = findNodeAndParentById(fileManage.value.selectedId)
 
-  if (parent && child) {
-    const childIndex = parent.children!.indexOf(child)
+  if (item?.parent) {
+    const childIndex = item?.parent.children!.indexOf(item.node)
     if (childIndex > -1) {
-      parent.children!.splice(childIndex, 1)
+      item?.parent.children!.splice(childIndex, 1)
     }
-  } else if (child) {
-    const childIndex = files.value.indexOf(child)
+  } else if (item?.node) {
+    const childIndex = files.value.indexOf(item.node)
     if (childIndex > -1) {
       files.value.splice(childIndex, 1)
     }
   }
+}
+
+const addFolder = () => {
+  const id = Date.now()
+  const folder: FileNode = {
+    id,
+    children: null,
+    name: '',
+    open: false,
+    type: 'folder'
+  }
+
+  if (fileManage.value.selectedId === null) {
+    files.value.push(folder)
+  } else {
+    const item = findNodeAndParentById(fileManage.value.selectedId)
+
+    console.log(item?.parent, item?.node)
+
+    if (item?.node?.type === 'file') {
+      item?.parent?.children?.push(folder)
+    } else {
+      if (item?.node && !item?.node?.children) item.node.children = []
+
+      item?.node?.children?.push(folder)
+    }
+  }
+
+  fileManage.value.renamingId = id
+}
+
+const addFile = () => {
+  const id = Date.now()
+  const folder: FileNode = {
+    id,
+    children: null,
+    name: '',
+    open: false,
+    type: 'file'
+  }
+
+  if (fileManage.value.selectedId === null) {
+    files.value.push(folder)
+  } else {
+    const item = findNodeAndParentById(fileManage.value.selectedId)
+
+    console.log(item?.parent, item?.node)
+
+    if (item?.node?.type === 'file') {
+      item?.parent?.children?.push(folder)
+    } else {
+      if (item?.node && !item?.node?.children) item.node.children = []
+
+      item?.node?.children?.push(folder)
+    }
+  }
+
+  fileManage.value.renamingId = id
 }
 
 onMounted(() => {
@@ -180,18 +243,15 @@ onMounted(() => {
 </script>
 
 <template>
-  <div
-    class="background min-h-screen w-full flex justify-center py-5"
-    @click="reset"
-  >
+  <div class="background min-h-screen w-full flex justify-center py-5">
     <div class="container flex flex-col">
       <div class="w-32 p-2 flex items-center justify-between">
         <button class="bg-green-700 rounded w-8 h-8">
-          <font-awesome-icon :icon="faFolderPlus" />
+          <font-awesome-icon :icon="faFolderPlus" @click="addFolder" />
         </button>
 
         <button class="bg-blue-700 rounded w-8 h-8">
-          <font-awesome-icon :icon="faFileCirclePlus" />
+          <font-awesome-icon :icon="faFileCirclePlus" @click="addFile" />
         </button>
 
         <button
