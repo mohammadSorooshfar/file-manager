@@ -1,12 +1,13 @@
 <script lang="ts" setup>
-import { onMounted, ref } from 'vue'
-import TreeNode from './components/TreeNode.vue'
-import { FileManage, FileNode } from './types/files-tree'
 import {
   faFileCirclePlus,
   faFolderPlus,
   faTrash
 } from '@fortawesome/free-solid-svg-icons'
+import { onMounted, ref } from 'vue'
+import DeleteDialog from './components/DeleteDialog.vue'
+import TreeNode from './components/TreeNode.vue'
+import { FileManage, FileNode } from './types/files-tree'
 
 const fileManage = ref<FileManage>({
   selectedId: null,
@@ -93,7 +94,14 @@ const files = ref<FileNode[]>([
       },
       {
         id: 11,
-        name: 'main.ts',
+        name: 'main.js',
+        type: 'file',
+        children: null,
+        open: false
+      },
+      {
+        id: 17,
+        name: 'style.css',
         type: 'file',
         children: null,
         open: false
@@ -110,20 +118,15 @@ const files = ref<FileNode[]>([
   },
   {
     id: 13,
-    name: 'vite.config.ts',
+    name: 'vite.config.js',
     type: 'file',
     children: null,
     open: false
   }
 ])
+const isOpen = ref(false)
 
-const reset = () => {
-  fileManage.value.renamingId = null
-  fileManage.value.selectedId = null
-}
-
-function findNodeAndParentById(id: number) {
-  // Recursive function to traverse the file structure
+const findNodeAndParentById = (id: number) => {
   const traverse = (
     node: FileNode,
     parent: FileNode | null
@@ -144,7 +147,6 @@ function findNodeAndParentById(id: number) {
     return null
   }
 
-  // Start the traversal from the root of the file structure
   for (const file of files.value) {
     const result = traverse(file, null)
     if (result) {
@@ -152,7 +154,6 @@ function findNodeAndParentById(id: number) {
     }
   }
 
-  // If the node is not found, return null
   return null
 }
 
@@ -172,6 +173,7 @@ const deleteNode = () => {
       files.value.splice(childIndex, 1)
     }
   }
+  isOpen.value = false
 }
 
 const addFolder = () => {
@@ -189,13 +191,10 @@ const addFolder = () => {
   } else {
     const item = findNodeAndParentById(fileManage.value.selectedId)
 
-    console.log(item?.parent, item?.node)
-
     if (item?.node?.type === 'file') {
       item?.parent?.children?.push(folder)
     } else {
       if (item?.node && !item?.node?.children) item.node.children = []
-
       item?.node?.children?.push(folder)
     }
   }
@@ -218,13 +217,10 @@ const addFile = () => {
   } else {
     const item = findNodeAndParentById(fileManage.value.selectedId)
 
-    console.log(item?.parent, item?.node)
-
     if (item?.node?.type === 'file') {
       item?.parent?.children?.push(folder)
     } else {
       if (item?.node && !item?.node?.children) item.node.children = []
-
       item?.node?.children?.push(folder)
     }
   }
@@ -232,12 +228,16 @@ const addFile = () => {
   fileManage.value.renamingId = id
 }
 
+const openConfirmModal = () => {
+  isOpen.value = true
+}
+
 onMounted(() => {
   window.addEventListener('keyup', (e) => {
     if (e.key === 'F2')
       fileManage.value.renamingId = fileManage.value.selectedId
 
-    if (e.key === 'Delete') deleteNode()
+    if (e.key === 'Delete' && fileManage.value.selectedId) openConfirmModal()
   })
 })
 </script>
@@ -245,31 +245,40 @@ onMounted(() => {
 <template>
   <div class="background min-h-screen w-full flex justify-center py-5">
     <div class="container flex flex-col">
-      <div class="w-32 p-2 flex items-center justify-between">
-        <button class="bg-green-700 rounded w-8 h-8">
-          <font-awesome-icon :icon="faFolderPlus" @click="addFolder" />
-        </button>
+      <div class="flex justify-between w-full">
+        <div class="w-32 p-2 flex items-center justify-between">
+          <button class="bg-green-700 rounded w-8 h-8" @click="addFolder">
+            <font-awesome-icon :icon="faFolderPlus" />
+          </button>
 
-        <button class="bg-blue-700 rounded w-8 h-8">
-          <font-awesome-icon :icon="faFileCirclePlus" @click="addFile" />
-        </button>
+          <button class="bg-blue-700 rounded w-8 h-8" @click="addFile">
+            <font-awesome-icon :icon="faFileCirclePlus" />
+          </button>
 
-        <button
-          class="rounded w-8 h-8"
-          :class="{
-            'bg-red-400': !fileManage.selectedId,
-            'bg-red-700': fileManage.selectedId
-          }"
-          :disabled="!fileManage.selectedId"
-          @click="deleteNode"
-        >
-          <font-awesome-icon :icon="faTrash" />
-        </button>
+          <button
+            class="rounded w-8 h-8 flex justify-center items-center"
+            :class="{
+              'bg-red-400': !fileManage.selectedId,
+              'bg-red-700': fileManage.selectedId
+            }"
+            :disabled="!fileManage.selectedId"
+            @click="openConfirmModal"
+          >
+            <font-awesome-icon :icon="faTrash" />
+          </button>
+        </div>
+
+        <div class="flex gap-5">
+          <span>Press F2 to rename item</span>
+          <span>Press Delete to delete item</span>
+        </div>
       </div>
 
       <template v-for="file in files">
         <TreeNode :file="file" :fileManage="fileManage" />
       </template>
     </div>
+
+    <DeleteDialog v-model="isOpen" @confirm="deleteNode" />
   </div>
 </template>
